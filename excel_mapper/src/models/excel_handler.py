@@ -4,6 +4,7 @@ from PySide6.QtCore import Qt, QAbstractTableModel
 from PySide6.QtGui import QColor, QFont, QBrush
 
 def get_excel_col_name(n):
+    """Mengonversi indeks angka ke nama kolom Excel (0 -> A, 1 -> B)."""
     result = ""
     n += 1
     while n > 0:
@@ -22,17 +23,26 @@ class ExcelTableModel(QAbstractTableModel):
         self.merged_ranges = []
         self.col_widths = {}
         self.row_heights = {}
+        self.hidden_cols = []  # Menyimpan indeks kolom yang disembunyikan di Excel asli
         self.highlighted_cells = {} 
         self.font_size = 10
         self._load_excel()
 
     def _load_excel(self):
+        # Memuat workbook dengan data_only=True agar formula terbaca sebagai nilai.
         wb = openpyxl.load_workbook(self.filepath, data_only=True)
         ws = wb[self.sheet_name]
         
         self.max_col = ws.max_column
-        self.max_row = ws.max_row 
+        self.max_row = ws.max_row
         self.merged_ranges = ws.merged_cells.ranges
+        
+        # Deteksi kolom yang disembunyikan (Hidden Columns)
+        self.hidden_cols = []
+        for col_letter, col_dim in ws.column_dimensions.items():
+            if col_dim.hidden:
+                idx = column_index_from_string(col_letter) - 1
+                self.hidden_cols.append(idx)
         
         self.grid_data = [[None for _ in range(self.max_col)] for _ in range(self.max_row)]
         
@@ -92,10 +102,14 @@ class ExcelTableModel(QAbstractTableModel):
         if orientation == Qt.Vertical and role == Qt.DisplayRole: return str(col + 1)
         return None
 
+    def set_font_size(self, size):
+        self.font_size = size
+        self.layoutChanged.emit()
+
     def add_highlight(self, cell_ref, color):
         self.highlighted_cells[cell_ref] = color
         self.layoutChanged.emit()
 
     def clear_highlights(self):
         self.highlighted_cells.clear()
-        self.layoutChanged.emit()   
+        self.layoutChanged.emit()
