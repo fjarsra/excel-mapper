@@ -91,7 +91,7 @@ class MainWindow(QMainWindow):
         src_layout.addLayout(src_row)
         
         arrow_label = QLabel(" ➔ ")
-        arrow_label.setStyleSheet("font-size: 20px; color: #94a3b8; font-weight: bold;")
+        arrow_label.setStyleSheet("font-size: 40px; color: #94a3b8; font-weight: bold;")
 
         dest_layout = QVBoxLayout()
         lbl_dest = QLabel("DESTINATION DATA")
