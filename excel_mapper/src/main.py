@@ -189,22 +189,34 @@ class MainWindow(QMainWindow):
         if filepath and sheetname:
             QApplication.setOverrideCursor(Qt.WaitCursor)
             try:
+                # 1. Load data dari file asli
                 model = ExcelTableModel(filepath, sheetname)
                 view.setModel(model)
                 
-                # --- UPDATE 1:1 ---
-                # 1. Sesuaikan Lebar Kolom (1 unit Excel = ~7.5 pixel UI)
-                for col_idx, width in model.col_widths.items():
-                    view.setColumnWidth(col_idx, int(width * 7.5))
-                    
-                # 2. Fitur Hide BARIS SAYA MATIKAN di sini agar baris 37-63 tidak hilang lagi!
-                # for c in model.hidden_cols: view.setColumnHidden(c, True)
-                # for r in model.hidden_rows: view.setRowHidden(r, True)
+                # 2. Sinkronisasi visual otomatis (Sangat Penting!)
+                view.sync_with_excel() 
                 
                 self.refresh_highlights()
             finally:
                 QApplication.restoreOverrideCursor()
 
+# Dan update StyleSheet di setup_ui agar terlihat profesional seperti Office:
+        self.setStyleSheet("""
+            QTableView { 
+                background-color: white; 
+                gridline-color: #d1d5db; 
+                color: black; 
+                border: none;
+                selection-background-color: #bbdefb;
+            }
+            QHeaderView::section { 
+                background-color: #f3f4f6; 
+                border: 1px solid #d1d5db; 
+                padding: 4px;
+                color: #4b5563;
+                font-weight: normal;
+            }
+        """)
     def handle_drop(self, source_cell, dest_cell):
         src_model = self.source_view.model()
         src_val = "N/A"

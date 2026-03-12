@@ -9,7 +9,19 @@ class DraggableTableView(QTableView):
         self.setSelectionMode(QTableView.SingleSelection)
         self.setSelectionBehavior(QTableView.SelectItems)
         self.setDragEnabled(True)
-        self.zoom_level = 0
+        self.setShowGrid(True)
+
+    def sync_with_excel(self):
+        model = self.model()
+        if not model: return
+        self.clearSpans()
+        for m_range in model.merged_ranges:
+            min_col, min_row, max_col, max_row = m_range.bounds
+            self.setSpan(min_row - 1, min_col - 1, max_row - min_row + 1, max_col - min_col + 1)
+        for r_idx, h in model.row_heights.items():
+            self.setRowHeight(r_idx, int(h * 1.33))
+        for c_idx, w in model.col_widths.items():
+            self.setColumnWidth(c_idx, int(w * 8))
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -19,10 +31,8 @@ class DraggableTableView(QTableView):
     def mouseMoveEvent(self, event):
         if not (event.buttons() & Qt.LeftButton): return
         if (event.position().toPoint() - self.drag_start_position).manhattanLength() < 5: return
-        
         index = self.indexAt(event.position().toPoint())
         if not index.isValid(): return
-
         excel_cell = f"{get_excel_col_name(index.column())}{index.row() + 1}"
         drag = QDrag(self)
         mime_data = QMimeData()
@@ -30,28 +40,29 @@ class DraggableTableView(QTableView):
         drag.setMimeData(mime_data)
         drag.exec_(Qt.CopyAction)
 
-    def apply_zoom(self, delta):
-        self.zoom_level += delta
-        font_size = max(8, 10 + self.zoom_level)
-        self.horizontalHeader().setDefaultSectionSize(max(50, 100 + (self.zoom_level * 15)))
-        self.verticalHeader().setDefaultSectionSize(max(20, 30 + (self.zoom_level * 5)))
-        if self.model(): self.model().set_font_size(font_size)
-
 class DroppableTableView(QTableView):
     def __init__(self, drop_callback):
         super().__init__()
         self.drop_callback = drop_callback
-        self.setSelectionMode(QTableView.SingleSelection)
-        self.setSelectionBehavior(QTableView.SelectItems)
         self.setAcceptDrops(True)
-        self.zoom_level = 0
+
+    def sync_with_excel(self):
+        model = self.model()
+        if not model: return
+        self.clearSpans()
+        for m_range in model.merged_ranges:
+            min_col, min_row, max_col, max_row = m_range.bounds
+            self.setSpan(min_row - 1, min_col - 1, max_row - min_row + 1, max_col - min_col + 1)
+        for r_idx, h in model.row_heights.items():
+            self.setRowHeight(r_idx, int(h * 1.33))
+        for c_idx, w in model.col_widths.items():
+            self.setColumnWidth(c_idx, int(w * 8))
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasText() and event.mimeData().text().startswith("SOURCE:"):
             event.acceptProposedAction()
 
-    def dragMoveEvent(self, event): 
-        event.acceptProposedAction()
+    def dragMoveEvent(self, event): event.acceptProposedAction()
 
     def dropEvent(self, event):
         text = event.mimeData().text()
@@ -62,10 +73,3 @@ class DroppableTableView(QTableView):
                 dest_cell = f"{get_excel_col_name(index.column())}{index.row() + 1}"
                 self.drop_callback(source_cell, dest_cell)
                 event.acceptProposedAction()
-
-    def apply_zoom(self, delta):
-        self.zoom_level += delta
-        font_size = max(8, 10 + self.zoom_level)
-        self.horizontalHeader().setDefaultSectionSize(max(50, 100 + (self.zoom_level * 15)))
-        self.verticalHeader().setDefaultSectionSize(max(20, 30 + (self.zoom_level * 5)))
-        if self.model(): self.model().set_font_size(font_size)

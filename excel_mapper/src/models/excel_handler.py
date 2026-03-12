@@ -19,9 +19,9 @@ class ExcelTableModel(QAbstractTableModel):
         self.grid_data = []
         self.max_row = 0
         self.max_col = 0
-        self.hidden_cols = set()
-        self.hidden_rows = set()
-        self.col_widths = {}  # BARU: Menyimpan lebar kolom 1:1
+        self.merged_ranges = []
+        self.col_widths = {}
+        self.row_heights = {}
         self.highlighted_cells = {} 
         self.font_size = 10
         self._load_excel()
@@ -29,37 +29,40 @@ class ExcelTableModel(QAbstractTableModel):
     def _load_excel(self):
         wb = openpyxl.load_workbook(self.filepath, data_only=True)
         ws = wb[self.sheet_name]
+        
         self.max_col = ws.max_column
-        self.max_row = min(ws.max_row, 300) 
+        self.max_row = ws.max_row 
+        self.merged_ranges = ws.merged_cells.ranges
         
         self.grid_data = [[None for _ in range(self.max_col)] for _ in range(self.max_row)]
         
         for row in ws.iter_rows(min_row=1, max_row=self.max_row, min_col=1, max_col=self.max_col):
             for cell in row:
                 r_idx, c_idx = cell.row - 1, cell.column - 1
-                val_str = "" if cell.value is None else str(cell.value)
-                bg_hex, is_bold = None, False
+                val = "" if cell.value is None else str(cell.value)
+                bg, bold, align = None, False, Qt.AlignLeft | Qt.AlignVCenter
                 
                 if cell.fill and cell.fill.fgColor and cell.fill.fgColor.type == 'rgb':
                     rgb = cell.fill.fgColor.rgb
-                    if type(rgb) == str and rgb != '00000000':
-                        bg_hex = f"#{rgb[2:]}" if len(rgb) == 8 else f"#{rgb}"
-                if cell.font:
-                    is_bold = cell.font.bold
-                    
-                self.grid_data[r_idx][c_idx] = {"value": val_str, "bg": bg_hex, "bold": is_bold}
+                    if isinstance(rgb, str) and rgb != '00000000':
+                        bg = f"#{rgb[2:]}" if len(rgb) == 8 else f"#{rgb}"
                 
-        # Mengekstrak Lebar Kolom & Status Tersembunyi
+                if cell.font: bold = cell.font.bold
+                
+                if cell.alignment:
+                    if cell.alignment.horizontal == 'center': align = Qt.AlignCenter
+                    elif cell.alignment.horizontal == 'right': align = Qt.AlignRight | Qt.AlignVCenter
+
+                self.grid_data[r_idx][c_idx] = {
+                    "value": val, "bg": bg, "bold": bold, "align": align
+                }
+                
         for col_letter, col_dim in ws.column_dimensions.items():
             idx = column_index_from_string(col_letter) - 1
-            if col_dim.hidden:
-                self.hidden_cols.add(idx)
-            if col_dim.width is not None:
-                self.col_widths[idx] = col_dim.width  # Simpan ukuran lebar
+            if col_dim.width: self.col_widths[idx] = col_dim.width
                 
-        for row_idx, row_dim in ws.row_dimensions.items():
-            if row_dim.hidden:
-                self.hidden_rows.add(row_idx - 1)
+        for r_idx, r_dim in ws.row_dimensions.items():
+            if r_dim.height: self.row_heights[r_idx - 1] = r_dim.height
         wb.close()
 
     def rowCount(self, parent=None): return self.max_row
@@ -68,20 +71,20 @@ class ExcelTableModel(QAbstractTableModel):
     def data(self, index, role=Qt.DisplayRole):
         if not index.isValid(): return None
         r, c = index.row(), index.column()
-        cell_data = self.grid_data[r][c] or {"value": "", "bg": None, "bold": False}
-        cell_ref = f"{get_excel_col_name(c)}{r + 1}"
-
+        cell_data = self.grid_data[r][c]
+        
         if role == Qt.DisplayRole: return cell_data["value"]
+        if role == Qt.TextAlignmentRole: return cell_data["align"]
         if role == Qt.BackgroundRole:
+            cell_ref = f"{get_excel_col_name(c)}{r + 1}"
             if cell_ref in self.highlighted_cells: return QBrush(self.highlighted_cells[cell_ref])
             if cell_data["bg"]: return QBrush(QColor(cell_data["bg"]))
-        if role == Qt.ForegroundRole:
-            if cell_ref in self.highlighted_cells: return QBrush(QColor("#0f172a"))
         if role == Qt.FontRole:
             font = QFont()
             font.setPointSize(self.font_size)
             font.setBold(cell_data["bold"])
             return font
+        if role == Qt.ForegroundRole: return QBrush(QColor("black")) 
         return None
 
     def headerData(self, col, orientation, role):
@@ -95,8 +98,4 @@ class ExcelTableModel(QAbstractTableModel):
 
     def clear_highlights(self):
         self.highlighted_cells.clear()
-        self.layoutChanged.emit()
-
-    def set_font_size(self, size):
-        self.font_size = size
-        self.layoutChanged.emit()
+        self.layoutChanged.emit()   
