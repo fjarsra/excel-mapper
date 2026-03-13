@@ -113,3 +113,61 @@ class ExcelTableModel(QAbstractTableModel):
     def clear_highlights(self):
         self.highlighted_cells.clear()
         self.layoutChanged.emit()
+    
+    # Tambahkan/Update fungsi ini di dalam kelas ExcelTableModel (excel_handler.py)
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid(): return None
+        r, c = index.row(), index.column()
+        cell_data = self.grid_data[r][c]
+        
+        if role == Qt.DisplayRole: return cell_data["value"]
+        if role == Qt.TextAlignmentRole: return cell_data["align"]
+        
+        if role == Qt.BackgroundRole:
+            # 1. Cek Highlight dari Search (Prioritas Utama agar terlihat)
+            # Kita simpan warna search di dalam kamus baru 'search_highlights'
+            if hasattr(self, 'search_highlights') and (r, c) in self.search_highlights:
+                return QBrush(self.search_highlights[(r, c)])
+
+            # 2. Cek Highlight dari Mapping (Warna biru/hijau yang sudah ada)
+            cell_ref = f"{get_excel_col_name(c)}{r + 1}"
+            if cell_ref in self.highlighted_cells: 
+                return QBrush(self.highlighted_cells[cell_ref])
+            
+            # 3. Warna background asli dari file Excel
+            if cell_data["bg"]: 
+                return QBrush(QColor(cell_data["bg"]))
+            
+            return QBrush(QColor("white"))
+
+        if role == Qt.FontRole:
+            font = QFont()
+            font.setPointSize(self.font_size)
+            font.setBold(cell_data["bold"])
+            return font
+            
+        if role == Qt.ForegroundRole: return QBrush(QColor("black")) 
+        return None
+
+    # TAMBAHKAN FUNGSI BARU INI UNTUK MENDUKUNG SEARCH
+    def setData(self, index, value, role=Qt.EditRole):
+        if not index.isValid():
+            return False
+        
+        if role == Qt.BackgroundRole:
+            if not hasattr(self, 'search_highlights'):
+                self.search_highlights = {}
+            
+            r, c = index.row(), index.column()
+            if value is None or value == QColor("white"):
+                if (r, c) in self.search_highlights:
+                    del self.search_highlights[(r, c)]
+            else:
+                self.search_highlights[(r, c)] = value
+            
+            # Beritahu View bahwa data berubah agar tabel digambar ulang
+            self.dataChanged.emit(index, index, [Qt.BackgroundRole])
+            return True
+        return False
+    
