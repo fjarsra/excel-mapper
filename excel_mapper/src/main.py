@@ -81,43 +81,51 @@ class MainWindow(QMainWindow):
         for btn in [self.btn_load_preset, self.btn_save_preset, self.btn_run]: header_layout.addWidget(btn)
         main_layout.addLayout(header_layout)
 
-        # Config Panel
+       # Config Panel
         config_frame = QFrame(objectName="card")
         config_layout = QHBoxLayout(config_frame)
+
+        # Bagian SOURCE DATA
+        src_container = QVBoxLayout()
+        src_container.addWidget(QLabel("SOURCE DATA"))
+        
+        src_row = QHBoxLayout() # <--- DEFINISIKAN DISINI
         self.src_file_input = QLineEdit(readOnly=True)
-        self.src_sheet_combo = QComboBox()
-        self.dest_file_input = QLineEdit(readOnly=True)
-        self.dest_sheet_combo = QComboBox()
+        self.src_file_input.setPlaceholderText("Pilih file sumber...")
         self.btn_src_browse = QPushButton("...")
         self.btn_src_browse.setProperty("class", "secondary")
         self.src_sheet_combo = QComboBox()
+        
         src_row.addWidget(self.src_file_input, stretch=3)
         src_row.addWidget(self.btn_src_browse)
         src_row.addWidget(self.src_sheet_combo, stretch=1)
-        src_layout.addLayout(src_row)
+        src_container.addLayout(src_row)
         
+        # Bagian Panah Pemisah (Opsional agar lebih cantik sesuai wireframe)
         arrow_label = QLabel(" ➔ ")
-        arrow_label.setStyleSheet("font-size: 40px; color: #94a3b8; font-weight: bold;")
+        arrow_label.setStyleSheet("font-size: 24px; color: #94a3b8; font-weight: bold;")
 
-        dest_layout = QVBoxLayout()
-        lbl_dest = QLabel("DESTINATION DATA")
-        lbl_dest.setProperty("class", "subtitle")
-        dest_layout.addWidget(lbl_dest)
-        dest_row = QHBoxLayout()
-        self.dest_file_input = QLineEdit()
-        self.dest_file_input.setPlaceholderText("C:\\...\\Template.xlsx")
-        self.dest_file_input.setReadOnly(True)
+        # Bagian DESTINATION DATA
+        dest_container = QVBoxLayout()
+        dest_container.addWidget(QLabel("DESTINATION DATA"))
+        
+        dest_row = QHBoxLayout() # <--- DEFINISIKAN DISINI
+        self.dest_file_input = QLineEdit(readOnly=True)
+        self.dest_file_input.setPlaceholderText("Pilih file tujuan/template...")
         self.btn_dest_browse = QPushButton("...")
         self.btn_dest_browse.setProperty("class", "secondary")
+        self.dest_sheet_combo = QComboBox()
         
-        for label, line, btn, combo in [("SOURCE DATA", self.src_file_input, self.btn_src_browse, self.src_sheet_combo), 
-                                      ("DESTINATION DATA", self.dest_file_input, self.btn_dest_browse, self.dest_sheet_combo)]:
-            layout = QVBoxLayout()
-            layout.addWidget(QLabel(label))
-            row = QHBoxLayout()
-            row.addWidget(line, 3); row.addWidget(btn); row.addWidget(combo, 1)
-            layout.addLayout(row)
-            config_layout.addLayout(layout, 1)
+        dest_row.addWidget(self.dest_file_input, stretch=3)
+        dest_row.addWidget(self.btn_dest_browse)
+        dest_row.addWidget(self.dest_sheet_combo, stretch=1)
+        dest_container.addLayout(dest_row)
+
+        # Masukkan semua ke config_layout utama
+        config_layout.addLayout(src_container, 1)
+        config_layout.addWidget(arrow_label)
+        config_layout.addLayout(dest_container, 1)
+        
         main_layout.addWidget(config_frame)
 
         # Workspace with Zoom & Toggle Controls
@@ -173,7 +181,8 @@ class MainWindow(QMainWindow):
         self.btn_dest_browse.clicked.connect(lambda: self.browse_file(self.dest_file_input, self.dest_sheet_combo))
         self.src_sheet_combo.currentTextChanged.connect(lambda s: self.load_sheet(self.src_file_input.text(), s, self.source_view))
         self.dest_sheet_combo.currentTextChanged.connect(lambda s: self.load_sheet(self.dest_file_input.text(), s, self.dest_view))
-        
+        self.src_search_input.textChanged.connect(lambda t: self.filter_table(self.source_view, t))
+        self.dest_search_input.textChanged.connect(lambda t: self.filter_table(self.dest_view, t))
         # Koneksi Zoom & Toggle View
         self.btn_src_zoom_in.clicked.connect(lambda: self.source_view.apply_zoom(1))
         self.btn_src_zoom_out.clicked.connect(lambda: self.source_view.apply_zoom(-1))
