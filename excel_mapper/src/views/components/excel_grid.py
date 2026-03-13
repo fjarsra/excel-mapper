@@ -2,6 +2,7 @@ from PySide6.QtWidgets import QTableView
 from PySide6.QtCore import Qt, QMimeData
 from PySide6.QtGui import QDrag
 from models.excel_handler import get_excel_col_name
+from PySide6.QtGui import QDrag, QPixmap
 
 class DraggableTableView(QTableView):
     def __init__(self):
@@ -57,10 +58,18 @@ class DraggableTableView(QTableView):
         index = self.indexAt(event.position().toPoint())
         if not index.isValid(): return
         excel_cell = f"{get_excel_col_name(index.column())}{index.row() + 1}"
+        
+        # --- FITUR GHOST IMAGE ---
+        pixmap = self.viewport().grab(self.visualRect(index)) # Ambil gambar sel
+        
         drag = QDrag(self)
         mime_data = QMimeData()
         mime_data.setText(f"SOURCE:{excel_cell}")
         drag.setMimeData(mime_data)
+        
+        drag.setPixmap(pixmap) # Pasang gambar transparan ke kursor
+        drag.setHotSpot(event.position().toPoint() - self.visualRect(index).topLeft())
+        
         drag.exec_(Qt.CopyAction)
 
 class DroppableTableView(QTableView):
@@ -104,9 +113,34 @@ class DroppableTableView(QTableView):
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasText() and event.mimeData().text().startswith("SOURCE:"):
+            # Triknya di sini: Kita beri gaya putus-putus HANYA untuk sel yang sedang "dilewati" (selected)
+            self.setStyleSheet("""
+                QTableView::item:selected {
+                    border: 2px dashed #10b981;
+                    background-color: rgba(16, 185, 129, 0.3);
+                    color: #000000;
+                }
+            """)
             event.acceptProposedAction()
-    def dragMoveEvent(self, event): event.acceptProposedAction()
+
+    def dragMoveEvent(self, event): 
+        # Cari tahu sel persis mana yang sedang ditunjuk kursor
+        index = self.indexAt(event.position().toPoint())
+        if index.isValid():
+            # Jadikan sel tersebut "terseleksi" agar CSS garis putus-putus hijau langsung menempel di sel ini
+            self.setCurrentIndex(index)
+        event.acceptProposedAction()
+
+    def dragLeaveEvent(self, event):
+        # Hilangkan gaya putus-putusnya saat kursor batal menjatuhkan data
+        self.setStyleSheet("")
+        self.clearSelection()
+        
     def dropEvent(self, event):
+        # Hilangkan gaya putus-putusnya setelah data berhasil dijatuhkan
+        self.setStyleSheet("")
+        self.clearSelection() 
+        
         text = event.mimeData().text()
         if text.startswith("SOURCE:"):
             source_cell = text.split(":")[1]

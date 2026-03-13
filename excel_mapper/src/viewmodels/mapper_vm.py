@@ -12,6 +12,7 @@ class MapperViewModel(QObject):
         super().__init__()
         self.rules = []
         self.worker = None
+        self.undo_stack = []
 
     def add_rule(self, src_file, src_sheet, src_cell, src_val, dest_file, dest_sheet, dest_cell):
         if not src_file or not dest_file: return
@@ -21,6 +22,7 @@ class MapperViewModel(QObject):
         }
         self.rules.append(rule)
         self.rules_updated.emit(self.rules)
+        self.undo_stack.append(rule) # Catat untuk Undo
 
     def remove_rule(self, index):
         if 0 <= index < len(self.rules):
@@ -42,3 +44,10 @@ class MapperViewModel(QObject):
     def load_preset(self, filepath):
         self.rules = PresetManager.load_preset(filepath)
         self.rules_updated.emit(self.rules)
+        
+    def undo_last_rule(self):
+        if self.undo_stack and self.rules:
+            last_rule = self.undo_stack.pop()
+            if last_rule in self.rules:
+                self.rules.remove(last_rule)
+                self.rules_updated.emit(self.rules)

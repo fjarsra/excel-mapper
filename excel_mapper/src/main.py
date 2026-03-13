@@ -11,7 +11,25 @@ from PySide6.QtGui import QColor
 from viewmodels.mapper_vm import MapperViewModel
 from models.excel_handler import ExcelTableModel
 from views.components.excel_grid import DraggableTableView, DroppableTableView
+from PySide6.QtGui import QColor, QPainter
 
+class LoadingOverlay(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.hide()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), QColor(0, 0, 0, 100))
+        painter.setPen(Qt.white)
+        font = painter.font()
+        font.setPointSize(24)
+        font.setBold(True)
+        painter.setFont(font)
+        painter.drawText(self.rect(), Qt.AlignCenter, "⏳ Membaca Excel...\nMohon Tunggu")
+        
+        
 class MainWindow(QMainWindow):
     def __init__(self, view_model: MapperViewModel):
         super().__init__()
@@ -25,10 +43,15 @@ class MainWindow(QMainWindow):
         self.dest_search_results = []
         self.dest_current_result_idx = -1
 
-        self.setWindowTitle("NexusXL Mapper - V1.1 (Enterprise Edition)")
+        self.setWindowTitle("Project Magang")
         self.resize(1300, 850)
         self.setup_ui()
         self.setup_connections()
+        self.is_dark_mode = False
+        self.overlay = LoadingOverlay(self)
+        
+        self.apply_theme()
+        # ... panggil self.apply_theme() di baris paling bawah __init__
 
     def setup_ui(self):
         # StyleSheet Global
@@ -73,20 +96,33 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(15)
 
-        # Header
+# Header
         header_layout = QHBoxLayout()
-        title_label = QLabel("🔗 NexusXL Mapper Pro")
+        title_label = QLabel("🔗 Project Magang")
         title_label.setProperty("class", "title")
         header_layout.addWidget(title_label)
         header_layout.addStretch()
         
+        # 1. CIPTAKAN TOMBOLNYA DULU
+        self.btn_theme = QPushButton("🌙 Dark Mode")
+        self.btn_theme.setProperty("class", "secondary") # Tambahan style agar seragam
+        
+        self.btn_undo = QPushButton("↩️ Undo")
+        self.btn_undo.setProperty("class", "secondary") # Tambahan style agar seragam
+        
         self.btn_load_preset = QPushButton("📂 Load Preset")
         self.btn_load_preset.setProperty("class", "secondary")
+        
         self.btn_save_preset = QPushButton("💾 Save Preset")
         self.btn_save_preset.setProperty("class", "secondary")
+        
         self.btn_run = QPushButton("▶ Run Mapping")
         self.btn_run.setProperty("class", "primary")
-        for btn in [self.btn_load_preset, self.btn_save_preset, self.btn_run]: header_layout.addWidget(btn)
+        
+        # 2. MASUKKAN KE LAYOUT (Urutan di sini menentukan posisi kiri ke kanan)
+        for btn in [self.btn_theme, self.btn_undo, self.btn_load_preset, self.btn_save_preset, self.btn_run]: 
+            header_layout.addWidget(btn)
+            
         main_layout.addLayout(header_layout)
 
         # Config Panel
@@ -242,6 +278,9 @@ class MainWindow(QMainWindow):
         self.btn_save_preset.clicked.connect(self.save_preset_dialog)
         self.btn_load_preset.clicked.connect(self.load_preset_dialog)
         self.vm.rules_updated.connect(self.refresh_rules_ui)
+        
+        self.btn_theme.clicked.connect(self.toggle_theme)
+        self.btn_undo.clicked.connect(self.vm.undo_last_rule)
 
     def apply_highlight(self, view):
         current_model = view.model()
@@ -329,6 +368,8 @@ class MainWindow(QMainWindow):
 
     def load_sheet(self, filepath, sheetname, view):
         if filepath and sheetname:
+            self.overlay.show()
+            QApplication.processEvents() # Paksa UI render layar gelap
             QApplication.setOverrideCursor(Qt.WaitCursor)
             try:
                 model = ExcelTableModel(filepath, sheetname)
@@ -337,6 +378,7 @@ class MainWindow(QMainWindow):
                 self.refresh_highlights()
             finally:
                 QApplication.restoreOverrideCursor()
+                self.overlay.hide()
 
     def handle_drop(self, source_cell, dest_cell):
         src_model = self.source_view.model()
@@ -376,6 +418,67 @@ class MainWindow(QMainWindow):
     def load_preset_dialog(self):
         path, _ = QFileDialog.getOpenFileName(self, "Load Preset", "", "JSON Files (*.json)")
         if path: self.vm.load_preset(path)
+        
+    def resizeEvent(self, event):
+        self.overlay.resize(event.size())
+        super().resizeEvent(event)
+
+    def apply_theme(self):
+        # === TEMA TERANG (LIGHT MODE) ===
+        light_theme = """
+            QMainWindow, QWidget#central { background-color: #f1f5f9; color: #1e293b; }
+            QFrame#card { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; }
+            QLabel { color: #1e293b; }
+            QLabel.title { font-size: 18px; font-weight: bold; color: #1e293b; }
+            QLineEdit, QComboBox { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: black; }
+            
+            QPushButton.primary { background-color: #2563eb; color: white; border-radius: 6px; padding: 8px 16px; font-weight: bold; border: none; }
+            QPushButton.primary:hover { background-color: #1d4ed8; }
+            
+            QPushButton.secondary { background-color: #ffffff; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px; font-weight: bold; }
+            QPushButton.secondary:hover { background-color: #f8fafc; }
+            
+            QPushButton.zoom-btn { background-color: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; border-radius: 4px; padding: 2px; font-weight: bold; font-size: 16px; min-width: 35px; max-width: 35px; }
+            QPushButton.zoom-btn:hover { background-color: #e2e8f0; }
+            
+            QTableView { background-color: white; gridline-color: #cbd5e1; color: black; border: none; selection-background-color: #bfdbfe; selection-color: black; }
+            QHeaderView::section { background-color: #f8fafc; color: #475569; border: 1px solid #e2e8f0; font-weight: bold; padding: 4px; }
+        """
+        
+        # === TEMA GELAP (DARK MODE) ===
+        dark_theme = """
+            QMainWindow, QWidget#central { background-color: #0f172a; color: #f8fafc; }
+            QFrame#card { background-color: #1e293b; border: 1px solid #334155; border-radius: 8px; }
+            QLabel { color: #f8fafc; }
+            QLabel.title { font-size: 18px; font-weight: bold; color: #f8fafc; }
+            QLineEdit, QComboBox { padding: 8px; border: 1px solid #475569; border-radius: 6px; background: #0f172a; color: white; }
+            
+            QPushButton.primary { background-color: #3b82f6; color: white; border-radius: 6px; padding: 8px 16px; font-weight: bold; border: none; }
+            QPushButton.primary:hover { background-color: #2563eb; }
+            
+            QPushButton.secondary { background-color: #334155; color: #f8fafc; border: 1px solid #475569; border-radius: 6px; padding: 6px 12px; font-weight: bold; }
+            QPushButton.secondary:hover { background-color: #475569; }
+            
+            QPushButton.zoom-btn { background-color: #334155; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; padding: 2px; font-weight: bold; font-size: 16px; min-width: 35px; max-width: 35px; }
+            QPushButton.zoom-btn:hover { background-color: #475569; }
+            
+            QTableView { background-color: #1e293b; gridline-color: #334155; color: white; border: none; selection-background-color: #2563eb; selection-color: white; }
+            QHeaderView::section { background-color: #0f172a; color: #cbd5e1; border: 1px solid #334155; font-weight: bold; padding: 4px; }
+        """
+        
+        # Terapkan sesuai
+    def toggle_theme(self):
+        # 1. Balikkan statusnya (dari False ke True, atau sebaliknya)
+        self.is_dark_mode = not self.is_dark_mode
+        
+        # 2. Ganti tulisan di tombolnya
+        if self.is_dark_mode:
+            self.btn_theme.setText("☀️ Light Mode")
+        else:
+            self.btn_theme.setText("🌙 Dark Mode")
+            
+        # 3. Terapkan warna barunya
+        self.apply_theme()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
