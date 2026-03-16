@@ -1,0 +1,40 @@
+{
+    "rules": [
+        {
+            "src_file": "D:\\Project Magang\\Shipment Checklist.xlsx",
+            "src_sheet": "TEST REPORT_Surveyor_Input 1",
+            "src_cell": "D72",
+            "src_val": "34.8",
+            "dest_file": "D:\\Project Magang\\Shipment Checklist.xlsx",
+            "dest_sheet": "ID046_KPC_Output 3",
+            "dest_cell": "CA7"
+        },
+        {
+            "src_file": "D:\\Project Magang\\Shipment Checklist.xlsx",
+            "src_sheet": "TEST REPORT_Surveyor_Input 1",
+            "src_cell": "E73",
+            "src_val": "28.1",
+            "dest_file": "D:\\Project Magang\\Shipment Checklist.xlsx",
+            "dest_sheet": "ID046_KPC_Output 3",
+            "dest_cell": "CA8"
+        },
+        {
+            "src_file": "D:\\Project Magang\\Shipment Checklist.xlsx",
+            "src_sheet": "TEST REPORT_Surveyor_Input 1",
+            "src_cell": "F72",
+            "src_val": "4.8",
+            "dest_file": "D:\\Project Magang\\Shipment Checklist.xlsx",
+            "dest_sheet": "ID046_KPC_Output 3",
+            "dest_cell": "CA9"
+        },
+        {
+            "src_file": "D:\\Project Magang\\Shipment Checklist.xlsx",
+            "src_sheet": "TEST REPORT_Surveyor_Input 1",
+            "src_cell": "F73",
+            "src_val": "5.3",
+            "dest_file": "D:\\Project Magang\\Shipment Checklist.xlsx",
+            "dest_sheet": "ID046_KPC_Output 3",
+            "dest_cell": "CA10"
+        }
+    ]
+}
