@@ -97,32 +97,48 @@ class MainWindow(QMainWindow):
             QTableWidget#rules_table {
                 background-color: #ffffff;
                 border: 1px solid #e2e8f0;
-                border-radius: 8px;
-                gridline-color: #f1f5f9;
-                selection-background-color: #f0f9ff;
-                selection-color: #0c4a6e;
+                border-radius: 10px;
+                gridline-color: transparent; /* Hilangkan garis kotak kaku */
                 outline: none;
             }
 
             QTableWidget#rules_table::item {
-                padding: 10px;
                 color: #334155;
-                border-bottom: 1px solid #f1f5f9;
+                padding-left: 15px;
+                border-bottom: 1px solid #f1f5f9; /* Garis pemisah horizontal saja */
             }
 
+            /* Header Tabel yang Elegan */
             QHeaderView::section {
                 background-color: #f8fafc;
                 color: #64748b;
                 font-weight: bold;
-                font-size: 11px;
-                padding: 8px;
+                font-size: 10px;
+                padding: 10px;
                 border: none;
                 border-bottom: 2px solid #e2e8f0;
                 text-transform: uppercase;
+                letter-spacing: 1px;
             }
 
-            /* Fix Area Kosong Tabel agar tidak Hitam */
-            QTableView { background-color: #ffffff; alternate-background-color: #f8fafc; color: #000000; }
+            /* Warna Baris Selang-seling */
+            QTableWidget#rules_table {
+                alternate-background-color: #fafafa;
+            }
+            /* FIX AREA TABEL (Paling sering jadi gelap) */
+            QTableView, QTableWidget {
+                background-color: #ffffff;
+                alternate-background-color: #f8fafc; /* Zebra stripe terang */
+                border: 1px solid #e2e8f0;
+                gridline-color: transparent;
+                color: #1e293b; /* Warna teks hitam keabuan */
+            }
+
+            /* Paksa area kosong di dalam tabel tetap putih */
+            QAbstractItemView {
+                background-color: #ffffff;
+                alternate-background-color: #f8fafc;
+            }
         """)
         
         central_widget = QWidget(objectName="central")
@@ -220,6 +236,9 @@ class MainWindow(QMainWindow):
         self.rules_table = QTableWidget(0, 4)
         self.rules_table.setObjectName("rules_table")
         self.rules_table.setHorizontalHeaderLabels(["Source", "Destination", "Type", "Action"])
+        self.rules_table.setObjectName("rules_table")
+        self.rules_table.setStyleSheet("background-color: white; color: black;") # Proteksi extra
+        self.rules_table.setAlternatingRowColors(True)
 
         # Pengaturan visual agar tabel bersih
         self.rules_table.verticalHeader().setVisible(False)
@@ -369,47 +388,56 @@ class MainWindow(QMainWindow):
 
     def refresh_rules_ui(self, rules):
         self.rules_table.setRowCount(0)
+        # Matikan update visual sementara agar proses lebih cepat
+        self.rules_table.setUpdatesEnabled(False)
+        
         for i, rule in enumerate(rules):
             row = self.rules_table.rowCount()
             self.rules_table.insertRow(row)
+            self.rules_table.setRowHeight(row, 45) # Buat baris lebih tinggi agar lega
+
+            # Data Sel dengan Formatting
+            src_text = f"📄 {rule['src_sheet']} › {rule['src_cell']}"
+            dest_text = f"🎯 {rule['dest_sheet']} › {rule['dest_cell']}"
             
-            # Data cells
-            items = [
-                QTableWidgetItem(f"{rule['src_sheet']}!{rule['src_cell']}"),
-                QTableWidgetItem(f"{rule['dest_sheet']}!{rule['dest_cell']}"),
-                QTableWidgetItem("⚡ Live Write") # Tambahkan ikon emoji agar menarik
-            ]
+            item_src = QTableWidgetItem(src_text)
+            item_dest = QTableWidgetItem(dest_text)
+            item_type = QTableWidgetItem("⚡ Live Mapping")
             
-            for col, item in enumerate(items):
-                item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable) # Nonaktifkan edit manual
+            # Tambahkan sedikit warna pada teks type agar menarik
+            item_type.setForeground(QColor("#0891b2")) 
+            
+            for col, item in enumerate([item_src, item_dest, item_type]):
+                item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
                 self.rules_table.setItem(row, col, item)
-            
-            # Tombol Delete yang lebih cantik
+
+            # --- Tombol Delete Custom ---
             btn_container = QWidget()
-            btn_layout = QHBoxLayout(btn_container)
-            btn_layout.setContentsMargins(0, 0, 0, 0)
-            btn_layout.setAlignment(Qt.AlignCenter)
-            
-            btn_delete = QPushButton("🗑️")
-            btn_delete.setFixedSize(30, 30)
-            btn_delete.setStyleSheet("""
-                QPushButton { 
-                    border: none; 
-                    background: transparent; 
-                    color: #94a3b8; 
-                    font-size: 14px; 
+            btn_lay = QHBoxLayout(btn_container)
+            btn_lay.setContentsMargins(0, 0, 0, 0)
+            btn_lay.setAlignment(Qt.AlignCenter)
+
+            btn_del = QPushButton("✕") # Gunakan silang tipis yang modern
+            btn_del.setFixedSize(24, 24)
+            btn_del.setStyleSheet("""
+                QPushButton {
+                    border-radius: 12px;
+                    border: 1px solid #fecaca;
+                    color: #ef4444;
+                    background-color: #ffffff;
+                    font-weight: bold;
                 }
-                QPushButton:hover { 
-                    color: #ef4444; 
-                    background-color: #fee2e2; 
-                    border-radius: 15px; 
+                QPushButton:hover {
+                    background-color: #ef4444;
+                    color: white;
                 }
             """)
-            btn_delete.clicked.connect(lambda _, idx=i: self.vm.remove_rule(idx))
+            btn_del.clicked.connect(lambda _, idx=i: self.vm.remove_rule(idx))
             
-            btn_layout.addWidget(btn_delete)
+            btn_lay.addWidget(btn_del)
             self.rules_table.setCellWidget(row, 3, btn_container)
-            
+
+        self.rules_table.setUpdatesEnabled(True)
         self.refresh_highlights()
 
     def refresh_highlights(self):

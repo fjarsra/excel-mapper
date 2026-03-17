@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Excel Mapper Pro</title>
+    <script type="text/javascript" src="/eel.js"></script>
+    <style>
+        :root { --primary: #0f172a; --accent: #10b981; --bg: #f8fafc; --border: #e2e8f0; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--primary); margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        
+        /* Header & Toolbar */
+        .toolbar { background: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+        .btn-primary { background: var(--accent); color: white; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+
+        /* Workspace Layout */
+        .workspace { display: flex; flex: 1; overflow: hidden; gap: 1px; background: var(--border); }
+        .panel { flex: 1; display: flex; flex-direction: column; background: white; overflow: hidden; }
+        .panel-header { padding: 10px 15px; background: #f1f5f9; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
+
+        /* Excel Grid Style */
+        .grid-container { flex: 1; overflow: auto; position: relative; }
+        table { border-collapse: collapse; background: white; font-size: 13px; table-layout: fixed; }
+        th { background: #f8fafc; position: sticky; top: 0; z-index: 10; border: 1px solid var(--border); padding: 5px; color: #64748b; }
+        td { border: 1px solid var(--border); padding: 4px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 80px; height: 25px; }
+        
+        /* Row Headers (Numbers) */
+        .row-header { background: #f8fafc; position: sticky; left: 0; z-index: 9; font-weight: bold; text-align: center; width: 40px; }
+        
+        /* Search Highlight */
+        .highlight-search { background-color: #fef08a !important; }
+        .highlight-mapped { background-color: #dbeafe !important; }
+    </style>
+</head>
+<body>
+
+    <div class="toolbar">
+        <div style="font-size: 18px; font-weight: bold;">🔗 Project Magang</div>
+        <button class="btn-primary" onclick="runMapping()">▶ Run Mapping</button>
+    </div>
+
+    <div class="workspace">
+        <div class="panel">
+            <div class="panel-header">
+                <span>🔵 Source Sheet</span>
+                <input type="text" oninput="searchGrid('src', this.value)" placeholder="🔍 Search...">
+            </div>
+            <div class="grid-container" id="src-grid">
+                </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <span>🟢 Destination Sheet</span>
+                <input type="text" oninput="searchGrid('dest', this.value)" placeholder="🔍 Search...">
+            </div>
+            <div class="grid-container" id="dest-grid">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        // Fungsi untuk me-render data Excel ke tabel HTML
+        eel.expose(renderGrid);
+        function renderGrid(target, data) {
+            let container = document.getElementById(target + '-grid');
+            let html = '<table><thead><tr><th></th>';
+            
+            // Render Headers (A, B, C...)
+            for(let c=0; c<data[0].length; c++) {
+                html += `<th>${getColName(c)}</th>`;
+            }
+            html += '</tr></thead><tbody>';
+
+            // Render Rows
+            data.forEach((row, r) => {
+                html += `<tr><td class="row-header">${r+1}</td>`;
+                row.forEach((cell, c) => {
+                    html += `<td draggable="true" ondragstart="handleDrag(event, '${getColName(c)}${r+1}')">${cell || ''}</td>`;
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function getColName(n) {
+            let s = "";
+            while(n >= 0) { s = String.fromCharCode(n % 26 + 65) + s; n = Math.floor(n / 26) - 1; }
+            return s;
+        }
+    </script>
+</body>
+</html>
